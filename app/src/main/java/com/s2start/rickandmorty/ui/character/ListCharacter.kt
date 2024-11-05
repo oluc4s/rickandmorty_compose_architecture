@@ -49,173 +49,183 @@ import com.s2start.rickandmorty.ui.theme.RickAndMortyTheme
 import org.koin.androidx.compose.koinViewModel
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListCharacter() {
     val viewModel:ListCharacterViewModel = koinViewModel()
+    val stateView by viewModel.listCharacters.collectAsState()
+
+    when(val state = stateView) {
+        is ListCaracterState.Loading -> ListLoaddingScreen()
+        is ListCaracterState.Error -> ListErrorScreen(state.e.message.toString())
+        is ListCaracterState.Success -> { ScreenSucessList(state.list) }
+    }
+}
+
+@Composable
+private fun ListLoaddingScreen(){
+    Column(Modifier
+        .fillMaxSize()
+        .background(Color.Gray)
+        .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "Carregando...")
+    }
+}
+
+@Composable
+private fun ListErrorScreen(messageError:String){
+    Column(Modifier
+        .fillMaxSize()
+        .background(Color.Red)
+        .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = messageError)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScreenSucessList(list:List<CharacterModel>){
 
     val (search,setSearch) = remember {
         mutableStateOf(TextFieldValue())
     }
 
-    val stateView by viewModel.listCharacters.collectAsState()
 
-    when(val state = stateView) {
-        is ListCaracterState.Loading -> {
-            Column(Modifier
-                .fillMaxSize()
-                .background(Color.Gray)
-                .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = "Carregando...")
-            }
+    LazyColumn {
+        item {
+            TextField(
+                value = search,
+                onValueChange = {
+                    setSearch(it)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .border(1.dp, Color.Gray, RoundedCornerShape(3.dp)),
+                placeholder = { Text(text = "Buscar") },
+                colors = TextFieldDefaults.textFieldColors(
+                    disabledTextColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    containerColor =  Color.Transparent
+                )
+            )
         }
-        is ListCaracterState.Error -> {
-            Column(Modifier
-                .fillMaxSize()
-                .background(Color.Red)
-                .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = state.e.message.toString())
-            }
-        }
-        is ListCaracterState.Success -> {
-            LazyColumn {
-                item {
-                    TextField(
-                        value = search,
-                        onValueChange = {
-                            setSearch(it)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                            .border(1.dp, Color.Gray, RoundedCornerShape(3.dp)),
-                        placeholder = { Text(text = "Buscar") },
-                        colors = TextFieldDefaults.textFieldColors(
-                            disabledTextColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            containerColor =  Color.Transparent
+        items(list){ item ->
+            var textIsAlive = if(item.isAlive){ "Vivao" } else {"Mortao"}
+            var expandedState by remember { mutableStateOf(false) }
+
+            val rotationState by animateFloatAsState(
+                targetValue = if (expandedState) 180f else 0f, label = ""
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = tween(
+                            durationMillis = 300,
+                            easing = LinearOutSlowInEasing
                         )
                     )
-                }
-                items(state.list){ item ->
-                    var textIsAlive = if(item.isAlive){ "Vivao" } else {"Mortao"}
-                    var expandedState by remember { mutableStateOf(false) }
+                    .padding(12.dp),
+                shape = RoundedCornerShape(10.dp),
+                onClick = {
 
-                    val rotationState by animateFloatAsState(
-                        targetValue = if (expandedState) 180f else 0f, label = ""
+                }
+            ) {
+                Row(Modifier) {
+                    AsyncImage(
+                        model = "https://rickandmortyapi.com/api/character/avatar/1.jpeg",
+                        contentDescription = null,
+                        placeholder = painterResource(id = R.drawable.ic_back),
+                        modifier = Modifier.size(50.dp)
                     )
 
-                    Card(
+                    Column (Modifier.padding(start = 10.dp)){
+                        Text(
+                            text = item.name,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "Human - $textIsAlive",
+                            fontWeight = FontWeight.Light,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .animateContentSize(
-                                animationSpec = tween(
-                                    durationMillis = 300,
-                                    easing = LinearOutSlowInEasing
-                                )
-                            )
-                            .padding(12.dp),
-                        shape = RoundedCornerShape(10.dp),
+                            .alpha(0.2f)
+                            .rotate(rotationState),
                         onClick = {
-
-                        }
-                    ) {
-                        Row(Modifier) {
-                            AsyncImage(
-                                model = "https://rickandmortyapi.com/api/character/avatar/1.jpeg",
-                                contentDescription = null,
-                                placeholder = painterResource(id = R.drawable.ic_back),
-                                modifier = Modifier.size(50.dp)
+                            expandedState = !expandedState
+                        }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Drop-Down Arrow"
+                        )
+                    }
+                }
+                if (expandedState) {
+                    Column(Modifier.padding(20.dp)) {
+                        Row (verticalAlignment = Alignment.CenterVertically){
+                            Text(
+                                text = "Status: ",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
                             )
-
-                            Column (Modifier.padding(start = 10.dp)){
-                                Text(
-                                    text = item.name,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
-                                )
-                                Text(
-                                    text = "Human - $textIsAlive",
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            IconButton(
-                                modifier = Modifier
-                                    .alpha(0.2f)
-                                    .rotate(rotationState),
-                                onClick = {
-                                    expandedState = !expandedState
-                                }) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Drop-Down Arrow"
-                                )
-                            }
+                            Text(
+                                text = textIsAlive,
+                                fontWeight = FontWeight.Light,
+                                fontSize = 12.sp
+                            )
                         }
-                        if (expandedState) {
-                            Column(Modifier.padding(20.dp)) {
-                                Row (verticalAlignment = Alignment.CenterVertically){
-                                    Text(
-                                        text = "Status: ",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                    Text(
-                                        text = textIsAlive,
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 12.sp
-                                    )
-                                }
 
-                                Row (verticalAlignment = Alignment.CenterVertically){
-                                    Text(
-                                        text = "Sexo: ",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                    Text(
-                                        text = "Male",
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 12.sp
-                                    )
-                                }
-
-                                Row (verticalAlignment = Alignment.CenterVertically){
-                                    Text(
-                                        text = "Espécies: ",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                    Text(
-                                        text = "Animal",
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 12.sp
-                                    )
-                                }
-
-                                Row (verticalAlignment = Alignment.CenterVertically){
-                                    Text(
-                                        text = "Origem: ",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                    Text(
-                                        text = "Marte",
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 12.sp
-                                    )
-                                }
-
-                            }
+                        Row (verticalAlignment = Alignment.CenterVertically){
+                            Text(
+                                text = "Sexo: ",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Male",
+                                fontWeight = FontWeight.Light,
+                                fontSize = 12.sp
+                            )
                         }
+
+                        Row (verticalAlignment = Alignment.CenterVertically){
+                            Text(
+                                text = "Espécies: ",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Animal",
+                                fontWeight = FontWeight.Light,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Row (verticalAlignment = Alignment.CenterVertically){
+                            Text(
+                                text = "Origem: ",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Marte",
+                                fontWeight = FontWeight.Light,
+                                fontSize = 12.sp
+                            )
+                        }
+
                     }
                 }
             }
